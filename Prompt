@@ -1,0 +1,68 @@
+You are working with Angular 21 conventions and must follow these architectural rules strictly:
+
+1. Do NOT assume Angular components use the `.component` suffix.
+
+   * Example:
+
+     * Use: `login.ts`, `dashboard.ts`
+     * NOT: `login.component.ts`
+
+2. Do NOT generate or expect `app.module.ts` or any `*.module.ts` files.
+
+   * Angular 21 uses standalone architecture by default.
+   * Components, routes, and providers are configured without NgModules.
+
+3. All global application configuration must be placed inside `app.config.ts`.
+
+   * Providers, routing, HTTP client setup, animations, interceptors, etc. belong there.
+
+4. `main.ts` should only bootstrap the application using `bootstrapApplication()` and import configuration from `app.config.ts`.
+
+5. Correct Angular 21 structure example:
+
+main.ts
+
+```ts
+import { bootstrapApplication } from '@angular/platform-browser';
+import { appConfig } from './app/app.config';
+import { App } from './app/app';
+
+bootstrapApplication(App, appConfig)
+  .catch((err) => console.error(err));
+```
+
+app.config.ts
+
+```ts
+import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
+import { provideRouter } from '@angular/router';
+import { routes } from './app.routes';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideBrowserGlobalErrorListeners(),
+    provideRouter(routes)
+  ]
+};
+```
+
+6. Components should be standalone:
+
+```ts
+@Component({
+  selector: 'app-home',
+  standalone: true,
+  templateUrl: './home.html'
+})
+export class Home {}
+```
+
+7. Never suggest:
+
+* `NgModule`
+* `declarations`
+* `imports` array inside modules
+* `app.module.ts`
+* legacy Angular architecture
+
+8. Always generate Angular 21 standalone-compatible code only.
