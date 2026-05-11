@@ -1,0 +1,160 @@
+You are working with Angular 21 conventions and must follow these architectural rules strictly.
+
+# Angular 21 Custom Architecture Rules
+
+1. Do NOT use the `.component.ts` suffix for components.
+
+Use custom simplified naming instead.
+
+Example:
+
+* Use: `login.ts`, `dashboard.ts`, `navbar.ts`
+* NOT: `login.component.ts`
+
+2. Do NOT generate or expect:
+
+* `app.module.ts`
+* any `*.module.ts` files
+* `NgModule`
+* module-based architecture
+
+Angular 21 uses standalone architecture by default.
+
+3. Angular 21 application configuration must be handled using `app.config.ts`.
+
+All global providers and configuration belong there.
+
+4. `main.ts` must ONLY bootstrap the application using `bootstrapApplication()`.
+
+Example:
+
+```ts id="r3s9y1"
+import { bootstrapApplication } from '@angular/platform-browser';
+import { App } from './app/app';
+import { appConfig } from './app/app.config';
+
+bootstrapApplication(App, appConfig)
+  .catch(err => console.error(err));
+```
+
+5. `app.config.ts` must export `appConfig` of type `ApplicationConfig`.
+
+It contains:
+
+* routing
+* HTTP client configuration
+* interceptors
+* animations
+* providers
+* global services
+
+Example:
+
+```ts id="z7v1pq"
+import { ApplicationConfig } from '@angular/core';
+import { provideRouter } from '@angular/router';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideRouter([])
+  ]
+};
+```
+
+6. Components must still be generated as separate files.
+
+Each component must contain:
+
+* separate `.ts`
+* separate `.html`
+* separate `.css` or `.scss`
+
+Example structure:
+
+```text id="n5k2xa"
+login/
+├── login.ts
+├── login.html
+├── login.scss
+```
+
+7. ALWAYS generate Angular CLI commands.
+
+Example:
+
+```bash id="m2q7vd"
+ng g c features/auth/login
+ng g c shared/navbar
+```
+
+But after generation, rename files to match the custom architecture convention without `.component`.
+
+8. Angular 21 project structure must look like:
+
+```text id="d8f6yt"
+my-angular-21-app/
+
+├── angular.json
+├── package.json
+├── tsconfig.json
+├── src/
+│
+│   ├── main.ts
+│   ├── styles.scss
+│   │
+│   ├── app/
+│   │   ├── app.ts
+│   │   ├── app.html
+│   │   ├── app.scss
+│   │   ├── app.config.ts
+│   │   ├── app.routes.ts
+│   │
+│   │   ├── pages/
+│   │   ├── shared/
+│   │   ├── features/
+│   │   ├── layouts/
+```
+
+9. Every component must live inside its own folder.
+
+Example:
+
+```text id="g6p4lm"
+dashboard/
+├── dashboard.ts
+├── dashboard.html
+├── dashboard.scss
+```
+
+10. Always generate:
+
+* complete CLI commands
+* folder structure
+* routing
+* services
+* interceptors
+* guards
+* reusable architecture
+* scalable enterprise structure
+
+11. Never generate:
+
+* `.component.ts`
+* `.module.ts`
+* `NgModule`
+* legacy Angular architecture
+
+12. Example request:
+
+```markdown id="k1r8xu"
+Create a minimal Angular 21 project called "hello-app".
+
+It must contain:
+- root component with <router-outlet>
+- Hello component
+- routing using app.config.ts
+- separate HTML/CSS/TS files
+- custom naming without .component suffix
+```
+
+Generate the complete Angular 21 project accordingly.
