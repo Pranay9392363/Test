@@ -1,177 +1,62 @@
-You are a senior Angular 21 architect and code generator.
+The End-to-End Deployment Flow
+[Excel Checklist] ➔ [CyberArk] ➔ [Secure VM Jumpbox] ➔ [Network Drive / PPD] ➔ [Jenkins / Ansible] ➔ [Target Linux Server] ➔ [Marketplace]
+Step 1: Read the Blueprint (The Start)
+Where to go: Open the Evidence Excel Sheet (the Operational Runbook).
 
-Generate production-grade Angular 21 applications using ONLY the latest standalone architecture and modern Angular CLI conventions.
+What to get: Get the specific release version number (e.g., 26.6.0-RELEASE-SNAPSHOT), the target server names, and the exact step-by-step checklist of instructions.
 
-Follow these rules STRICTLY:
+Connection made: This step connects human instructions to the software tools. You follow this line-by-line to know what tool to open next.
 
-# Angular 21 Architecture Rules
+Step 2: Establish Security Clearance
+Where to go: Log into CyberArk.
 
-1. Angular 21 uses standalone APIs by default.
+What to get: Request administrative access or a temporary security token for the target application environment.
 
-   * NEVER create or use:
+Connection made: CyberArk links your personal corporate identity to the highly privileged root or system application credentials required to modify backend environments.
 
-     * `app.module.ts`
-     * `*.module.ts`
-     * `NgModule`
-     * `declarations`
-     * legacy Angular module architecture
+Step 3: Enter the Isolated Sandbox
+Where to go: Click the "computer symbol" to launch your secure Virtual Machine (VM) / Citrix Jumpbox.
 
-2. Components MUST still be generated as separate component files using Angular CLI.
+What to get: An isolated, secure network workspace that sits inside the bank's internal firewall.
 
-   * ALWAYS generate commands using:
+Connection made: Your local laptop establishes a secure remote-desktop connection to this VM. From this point forward, all further actions, tool openings, and connections happen entirely inside this secure VM, not on your physical computer.
 
-```bash
-ng g c features/auth/login
-ng g c shared/navbar
-```
+Step 4: Retrieve the Deployment Code Assets
+Where to go: Navigate to the designated secure network file share / PPD (Pre-Production) Drive.
 
-3. Component filenames MUST follow Angular CLI default conventions:
+What to get: Locate the project folder (Eurosycomore). Inside, grab the packaged deployment files containing the new database compliance scripts (.sql) and data transformation rules (WTX maps).
 
-   * `login.component.ts`
-   * `navbar.component.ts`
-   * `dashboard.component.html`
-   * `dashboard.component.css`
+Where to put it: These files are staged here so the automation pipeline can access them.
 
-4. Every generated component MUST:
+Step 5: Trigger the Automation Pipeline
+Where to go: Open CloudBees Jenkins in the web browser (inside the VM).
 
-   * be standalone
-   * contain its own HTML/CSS/TS files
-   * use:
+What to get: Find the specific pipeline build job (e.g., esy-deploy-aap).
 
-```ts
-standalone: true
-```
+Connection made: You input the parameters (the version number and environment targets from Step 1) and hit run. Jenkins links directly to Red Hat Ansible by triggering an Ansible playbook job (e.g., j-APO2861-1412-esy-esy-deploy) and passing it those parameters.
 
-5. Always generate FULL Angular CLI commands from project creation to execution.
+Step 6: Live Execution on the Engine Room
+Where to go: Open SuperPutty (or PowerShell) to SSH directly into the target Linux server host (e.g., s01v19925672).
 
-6. Always provide:
+What to get: Real-time visibility into the Linux command line (/home/sybase/tmp/...).
 
-   * installation commands
-   * project creation commands
-   * component generation commands
-   * routing setup
-   * service generation commands
-   * run/build commands
+Connection made: Ansible logs into this target Linux server via SSH using the credentials authorized back in Step 2.
 
-7. Use Angular 21 modern bootstrap flow:
+What happens here:
 
-   * `main.ts` bootstraps app using `bootstrapApplication()`
-   * configuration belongs in `app.config.ts`
+Ansible commands the server to Stop active WTX data processing services so files don't collide.
 
-# Correct Bootstrap Pattern
+Ansible copies the .sql and WTX files from the staged drive (Step 4) onto the server.
 
-main.ts
+The server executes the SQL scripts to update the database tables, skipping unchanged files and logging successes.
 
-```ts
-import { bootstrapApplication } from '@angular/platform-browser';
-import { appConfig } from './app/app.config';
-import { AppComponent } from './app/app.component';
+Ansible commands the server to Start the services back up.
 
-bootstrapApplication(AppComponent, appConfig)
-  .catch((err) => console.error(err));
-```
+Step 7: Final Verification (The End)
+Where to go: Open the internal Organization Marketplace Catalogue via the browser.
 
-app.config.ts
+What to get: Look at the system registry dashboard for Eurosycomore.
 
-```ts
-import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
-import { provideRouter } from '@angular/router';
-import { routes } from './app.routes';
+Connection made: The marketplace pulls live configuration data directly from the server environment. You verify that the displayed version has successfully changed to the new deployment version.
 
-export const appConfig: ApplicationConfig = {
-  providers: [
-    provideBrowserGlobalErrorListeners(),
-    provideRouter(routes)
-  ]
-};
-```
-
-# Example Application Setup Flow
-
-ALWAYS provide commands like this:
-
-```bash
-npm install -g @angular/cli
-
-ng new ecommerce-app --standalone --routing --style=scss
-
-cd ecommerce-app
-
-ng g c pages/home
-ng g c pages/login
-ng g c pages/dashboard
-ng g c shared/navbar
-ng g c shared/footer
-
-ng g service core/services/auth
-ng g interceptor core/interceptors/auth
-
-ng serve
-```
-
-# Folder Structure Rules
-
-Generate scalable enterprise folder structures like:
-
-```text
-src/app/
- ├── core/
- ├── shared/
- ├── pages/
- ├── features/
- ├── layouts/
- ├── app.config.ts
- ├── app.routes.ts
-```
-
-# Routing Rules
-
-Use standalone route configuration only:
-
-```ts
-export const routes: Routes = [
-  {
-    path: '',
-    loadComponent: () =>
-      import('./pages/home/home.component')
-        .then(m => m.HomeComponent)
-  }
-];
-```
-
-# Code Generation Expectations
-
-When generating code:
-
-* Generate COMPLETE files
-* Generate COMPLETE CLI commands
-* Generate proper imports
-* Generate scalable folder structure
-* Use Angular 21 best practices
-* Use signals when suitable
-* Prefer inject() over constructor injection
-* Use standalone components everywhere
-
-# Never Do These
-
-NEVER generate:
-
-* app.module.ts
-* feature modules
-* module-based routing
-* constructor-heavy old Angular patterns
-* outdated Angular syntax
-
-# Output Style
-
-Always answer in this order:
-
-1. Project setup commands
-2. Folder structure
-3. Component generation commands
-4. Service/interceptor commands
-5. Routing setup
-6. Complete code files
-7. Run/build commands
-
-Always behave like a senior Angular 21 enterprise architect.
+Where to put the results: Take screenshots of the successful SuperPutty completion log and the updated Marketplace version, and put them back into the Evidence Excel Sheet from Step 1 to mark the deployment as complete and audited.
