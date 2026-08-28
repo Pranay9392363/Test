@@ -13,108 +13,119 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as io_go
 import plotly.graph_objects as go
 import streamlit as st
 
 # ==============================================================================
-# 1. PAGE CONFIGURATION & CUSTOM ENTERPRISE CSS
+# 1. PAGE CONFIGURATION & UNIFIED ENTERPRISE LIGHT CSS
 # ==============================================================================
 st.set_page_config(
-    page_title="Enterprise KPI Analytics Platform",
+    page_title="Enterprise KPI Analytics Dashboard",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-ENTERPRISE_CSS = """
+ENTERPRISE_LIGHT_CSS = """
 <style>
-    /* Main Background & Fonts */
+    /* Global Clean Light Palette */
+    :root {
+        --bg-main: #F8FAFC;
+        --bg-card: #FFFFFF;
+        --border-color: #E2E8F0;
+        --text-primary: #0F172A;
+        --text-secondary: #475569;
+        --text-muted: #64748B;
+        --accent-blue: #0284C7;
+    }
+
+    /* Main Background Force Light */
     .stApp {
-        background-color: #F8FAFC;
+        background-color: var(--bg-main) !important;
+        color: var(--text-primary) !important;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
     
-    /* Global Container Padding */
+    /* Global Padding */
     .block-container {
-        padding-top: 1.5rem;
-        padding-bottom: 2rem;
-        padding-left: 2rem;
-        padding-right: 2rem;
+        padding: 1.5rem 2rem 2rem 2rem !important;
     }
     
-    /* Enterprise Header Banner */
+    /* Light Enterprise Header Banner */
     .enterprise-header {
-        background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
-        padding: 1.8rem 2rem;
-        border-radius: 12px;
-        color: #FFFFFF;
+        background-color: #FFFFFF;
+        padding: 1.5rem 1.8rem;
+        border-radius: 10px;
+        border: 1px solid var(--border-color);
         margin-bottom: 1.5rem;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
     }
     .enterprise-header h1 {
-        color: #FFFFFF !important;
-        font-size: 1.8rem !important;
+        color: var(--text-primary) !important;
+        font-size: 1.75rem !important;
         font-weight: 700 !important;
         margin: 0 !important;
         padding: 0 !important;
         letter-spacing: -0.02em;
     }
     .enterprise-header p {
-        color: #94A3B8 !important;
-        font-size: 0.95rem !important;
-        margin: 0.3rem 0 0 0 !important;
+        color: var(--text-muted) !important;
+        font-size: 0.9rem !important;
+        margin: 0.2rem 0 0 0 !important;
     }
 
     /* KPI Cards Styling */
     .kpi-card {
-        background-color: #FFFFFF;
+        background-color: var(--bg-card);
         border-radius: 10px;
         padding: 1.25rem 1rem;
-        border: 1px solid #E2E8F0;
-        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+        border: 1px solid var(--border-color);
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
         transition: transform 0.15s ease, box-shadow 0.15s ease;
         text-align: center;
         height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     }
     .kpi-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.06);
     }
     .kpi-label {
-        color: #64748B;
+        color: var(--text-muted);
         font-size: 0.75rem;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        margin-bottom: 0.4rem;
+        margin-bottom: 0.3rem;
     }
     .kpi-value {
-        color: #0F172A;
+        color: var(--text-primary);
         font-size: 1.6rem;
         font-weight: 700;
         line-height: 1.2;
     }
     .kpi-subtext {
-        color: #3B82F6;
+        color: var(--accent-blue);
         font-size: 0.75rem;
         font-weight: 500;
-        margin-top: 0.3rem;
+        margin-top: 0.25rem;
     }
 
-    /* Section Card Containers */
+    /* Section Containers */
     .section-container {
-        background-color: #FFFFFF;
+        background-color: var(--bg-card);
         border-radius: 10px;
-        border: 1px solid #E2E8F0;
+        border: 1px solid var(--border-color);
         padding: 1.25rem;
         margin-bottom: 1.25rem;
-        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.03);
     }
     
-    /* Headers & Dividers */
+    /* Headers & Title Typography */
     .section-title {
-        color: #0F172A;
+        color: var(--text-primary);
         font-size: 1.1rem;
         font-weight: 700;
         margin-bottom: 1rem;
@@ -123,32 +134,39 @@ ENTERPRISE_CSS = """
         gap: 0.5rem;
     }
     
-    /* Streamlit Components Tweaks */
+    /* Sidebar Styling Force Light */
+    section[data-testid="stSidebar"] {
+        background-color: #FFFFFF !important;
+        border-right: 1px solid var(--border-color) !important;
+    }
+
+    /* Tabs Custom Styling */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background-color: #E2E8F0;
+        gap: 6px;
+        background-color: #F1F5F9;
         padding: 4px;
         border-radius: 8px;
+        border: 1px solid var(--border-color);
     }
     .stTabs [data-baseweb="tab"] {
-        height: 40px;
-        white-space: pre-wrap;
+        height: 38px;
         border-radius: 6px;
         font-weight: 600;
-        color: #475569;
+        color: var(--text-secondary);
+        font-size: 0.88rem;
     }
     .stTabs [aria-selected="true"] {
         background-color: #FFFFFF !important;
-        color: #0F172A !important;
+        color: var(--text-primary) !important;
         box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     }
     
-    /* Hide Streamlit Boilerplate */
+    /* Hide Boilerplate */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
 </style>
 """
-st.markdown(ENTERPRISE_CSS, unsafe_allow_html=True)
+st.markdown(ENTERPRISE_LIGHT_CSS, unsafe_allow_html=True)
 
 
 # ==============================================================================
@@ -161,7 +179,7 @@ def load_and_clean_data(
     """Reads Excel or CSV files, cleans column names, drops empty rows/cols."""
     try:
         buffer = BytesIO(file_bytes)
-        if file_name.endswith((".xlsx", ".xls")):
+        if file_name.lower().endswith((".xlsx", ".xls")):
             if sheet_name:
                 df = pd.read_excel(buffer, sheet_name=sheet_name)
             else:
@@ -174,7 +192,7 @@ def load_and_clean_data(
         if df.empty:
             return None, "Uploaded file/worksheet contains no data."
 
-        # Clean Columns
+        # Clean Columns safely
         df.columns = [str(col).strip() for col in df.columns]
 
         # Drop completely empty rows and columns
@@ -221,17 +239,16 @@ def classify_columns(df: pd.DataFrame) -> dict[str, list[str]]:
         if pd.api.types.is_datetime64_any_dtype(series):
             is_date = True
         elif series.dtype == "object" or pd.api.types.is_string_dtype(series):
-            # Check string dates without raising exceptions
-            sample = series.astype(str).str.strip().head(100)
+            sample = series.astype(str).str.strip().head(50)
             date_matches = 0
             for val in sample:
                 if len(val) >= 6 and re.search(r"\d{2,4}[-/\.]\d{1,2}[-/\.]\d{1,2}", val):
                     date_matches += 1
-            if date_matches / len(sample) > 0.6:
+            if len(sample) > 0 and (date_matches / len(sample)) > 0.5:
                 try:
-                    pd.to_datetime(series.head(50), format="mixed", errors="raise")
+                    pd.to_datetime(series.head(20), errors="raise")
                     is_date = True
-                except (ValueError, TypeError):
+                except (ValueError, TypeError, OverflowError):
                     pass
 
         if is_date:
@@ -250,16 +267,15 @@ def classify_columns(df: pd.DataFrame) -> dict[str, list[str]]:
 
         # 3. NUMERIC DETECTION
         if pd.api.types.is_numeric_dtype(series):
-            # Treat numeric with tiny integer range as categorical if low cardinality
             if n_unique <= 10 and (n_unique / non_null_len) < 0.05:
                 classifications["CATEGORICAL"].append(col)
             else:
                 classifications["NUMERIC"].append(col)
             continue
 
-        # Attempt string-to-numeric coercion check
+        # Coercion Check for Numbers formatted as strings
         if series.dtype == "object":
-            sample_str = series.astype(str).str.replace(",", "").str.replace("$", "").str.strip()
+            sample_str = series.astype(str).str.replace(",", "", regex=False).str.replace("$", "", regex=False).str.strip()
             numeric_coerced = pd.to_numeric(sample_str, errors="coerce")
             if numeric_coerced.notnull().sum() / non_null_len > 0.85:
                 classifications["NUMERIC"].append(col)
@@ -330,46 +346,45 @@ def calculate_data_quality(df: pd.DataFrame, classifications: dict[str, list[str
 
 
 # ==============================================================================
-# 5. AUTOMATIC INTELLIGENT CHART SELECTION & SCORING ENGINE
+# 5. AUTOMATIC INTELLIGENT CHART SELECTION ENGINE (EXPANDED DIVERSITY)
 # ==============================================================================
 def select_automatic_insights(
     df: pd.DataFrame, classifications: dict[str, list[str]]
 ) -> list[dict]:
-    """Selects and scores the top 4-6 visuals for the immediate dashboard."""
+    """Generates up to 8 diverse chart specifications based on dataset characteristics."""
     visual_specs = []
 
-    # Scoring Categorical Columns
+    # Rank Categoricals
     cat_scores = []
     for col in classifications["CATEGORICAL"]:
         n_uniq = df[col].nunique()
-        if 2 <= n_uniq <= 20:
+        if 2 <= n_uniq <= 30:
             score = 10.0
-            col_lower = col.lower()
+            col_lower = str(col).lower()
             if any(kw in col_lower for kw in ["status", "phase", "type", "category", "dept", "department", "region", "priority", "severity"]):
                 score += 5.0
             if 3 <= n_uniq <= 8:
                 score += 3.0
             cat_scores.append((score, col))
-
     cat_scores.sort(key=lambda x: x[0], reverse=True)
     top_cats = [c[1] for c in cat_scores]
 
-    # Scoring Date Columns
+    # Rank Dates
     date_scores = []
     for col in classifications["DATE"]:
         score = 10.0
-        col_lower = col.lower()
+        col_lower = str(col).lower()
         if any(kw in col_lower for kw in ["created", "date", "timestamp", "start", "opened"]):
             score += 5.0
         date_scores.append((score, col))
     date_scores.sort(key=lambda x: x[0], reverse=True)
     top_dates = [d[1] for d in date_scores]
 
-    # Scoring Numeric Columns
+    # Rank Numerics
     num_scores = []
     for col in classifications["NUMERIC"]:
         score = 10.0
-        col_lower = col.lower()
+        col_lower = str(col).lower()
         if any(kw in col_lower for kw in ["amount", "sales", "revenue", "total", "cost", "price", "duration", "score", "qty", "quantity"]):
             score += 5.0
         num_scores.append((score, col))
@@ -392,71 +407,100 @@ def select_automatic_insights(
         visual_specs.append(
             {
                 "type": "cat_donut",
-                "title": f"Share by {top_cats[1]}",
+                "title": f"Proportional Share by {top_cats[1]}",
                 "col": top_cats[1],
                 "span": 6,
             }
         )
-    elif top_cats:
-        visual_specs.append(
-            {
-                "type": "cat_donut",
-                "title": f"Proportional Share of {top_cats[0]}",
-                "col": top_cats[0],
-                "span": 6,
-            }
-        )
 
-    # 3. Date Trend Chart
+    # 3. Main Date Volume Trend
     if top_dates:
         visual_specs.append(
             {
                 "type": "date_trend",
-                "title": f"Volume Trend Over Time ({top_dates[0]})",
+                "title": f"Activity Volume Trend ({top_dates[0]})",
                 "date_col": top_dates[0],
                 "cat_col": top_cats[0] if top_cats else None,
                 "span": 12,
             }
         )
 
-    # 4. Numeric Metric Breakdown or Distribution
-    if top_nums:
-        if top_cats:
-            visual_specs.append(
-                {
-                    "type": "num_by_cat",
-                    "title": f"Total {top_nums[0]} by {top_cats[0]}",
-                    "num_col": top_nums[0],
-                    "cat_col": top_cats[0],
-                    "span": 6,
-                }
-            )
+    # 4. Cumulative Trend / Growth Over Time
+    if top_dates:
         visual_specs.append(
             {
-                "type": "num_dist",
-                "title": f"Distribution of {top_nums[0]}",
-                "num_col": top_nums[0],
-                "span": 6 if top_cats else 12,
+                "type": "cumulative_trend",
+                "title": f"Cumulative Growth ({top_dates[0]})",
+                "date_col": top_dates[0],
+                "span": 6,
             }
         )
 
-    return visual_specs[:5]
+    # 5. Top Categorical Pareto / Concentration
+    if top_cats:
+        cat_for_pareto = top_cats[2] if len(top_cats) > 2 else top_cats[0]
+        visual_specs.append(
+            {
+                "type": "pareto_cat",
+                "title": f"Concentration Analysis ({cat_for_pareto})",
+                "col": cat_for_pareto,
+                "span": 6 if top_dates else 12,
+            }
+        )
+
+    # 6. Metric Breakdown by Category
+    if top_nums and top_cats:
+        visual_specs.append(
+            {
+                "type": "num_by_cat",
+                "title": f"Total {top_nums[0]} by {top_cats[0]}",
+                "num_col": top_nums[0],
+                "cat_col": top_cats[0],
+                "span": 6,
+            }
+        )
+
+    # 7. Distribution of Primary Numeric Field
+    if top_nums:
+        visual_specs.append(
+            {
+                "type": "num_dist",
+                "title": f"Value Distribution of {top_nums[0]}",
+                "num_col": top_nums[0],
+                "span": 6,
+            }
+        )
+
+    # 8. Scatter Correlation (if multiple numerics exist)
+    if len(top_nums) >= 2:
+        visual_specs.append(
+            {
+                "type": "scatter_num",
+                "title": f"Correlation: {top_nums[0]} vs {top_nums[1]}",
+                "num_x": top_nums[0],
+                "num_y": top_nums[1],
+                "cat_col": top_cats[0] if top_cats else None,
+                "span": 12,
+            }
+        )
+
+    return visual_specs[:8]
 
 
 # ==============================================================================
-# 6. PLOTLY CHART BUILDERS (ENTERPRISE THEME)
+# 6. PLOTLY CHART BUILDERS (UNIFIED LIGHT THEME)
 # ==============================================================================
-COLOR_PALETTE = ["#0284C7", "#0D9488", "#6366F1", "#8B5CF6", "#EC4899", "#F59E0B", "#10B981", "#64748B"]
+LIGHT_COLOR_PALETTE = ["#0284C7", "#0D9488", "#6366F1", "#8B5CF6", "#EC4899", "#F59E0B", "#10B981", "#64748B"]
 
 
-def apply_plotly_enterprise_theme(fig: go.Figure, title: str) -> go.Figure:
-    """Applies clean enterprise aesthetic to Plotly figures."""
+def apply_plotly_light_theme(fig: go.Figure, title: str) -> go.Figure:
+    """Applies clean, unified light enterprise aesthetics to Plotly charts."""
     fig.update_layout(
-        title={"text": f"<b>{title}</b>", "font": {"size": 14, "color": "#0F172A"}},
-        margin=dict(l=20, r=20, t=40, b=20),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="Inter, sans-serif", color="#475569", size=12),
+        title={"text": f"<b>{title}</b>", "font": {"size": 13, "color": "#0F172A"}},
+        margin=dict(l=20, r=20, t=45, b=20),
+        paper_bgcolor="#FFFFFF",
+        plot_bgcolor="#FFFFFF",
+        font=dict(family="Inter, sans-serif", color="#475569", size=11),
         legend=dict(
             orientation="h",
             yanchor="bottom",
@@ -464,6 +508,7 @@ def apply_plotly_enterprise_theme(fig: go.Figure, title: str) -> go.Figure:
             xanchor="right",
             x=1,
             title="",
+            font=dict(size=10),
         ),
         xaxis=dict(
             showgrid=True,
@@ -471,6 +516,7 @@ def apply_plotly_enterprise_theme(fig: go.Figure, title: str) -> go.Figure:
             zeroline=False,
             showline=True,
             linecolor="#CBD5E1",
+            tickfont=dict(size=10),
         ),
         yaxis=dict(
             showgrid=True,
@@ -478,15 +524,16 @@ def apply_plotly_enterprise_theme(fig: go.Figure, title: str) -> go.Figure:
             zeroline=False,
             showline=True,
             linecolor="#CBD5E1",
+            tickfont=dict(size=10),
         ),
     )
     return fig
 
 
 def build_categorical_bar(df: pd.DataFrame, col: str, title: str) -> go.Figure:
-    counts = df[col].value_counts().reset_index()
+    counts = df[col].astype(str).value_counts().reset_index()
     counts.columns = [col, "Count"]
-    counts = counts.head(15)
+    counts = counts.head(12)
 
     fig = px.bar(
         counts,
@@ -496,19 +543,19 @@ def build_categorical_bar(df: pd.DataFrame, col: str, title: str) -> go.Figure:
         text="Count",
         color_discrete_sequence=["#0284C7"],
     )
-    fig.update_traces(textposition="outside", marker_radius=4)
+    fig.update_traces(textposition="outside", marker_line_color="#0284C7", marker_line_width=1)
     fig.update_layout(yaxis=dict(autorange="reversed"))
-    return apply_plotly_enterprise_theme(fig, title)
+    return apply_plotly_light_theme(fig, title)
 
 
 def build_categorical_donut(df: pd.DataFrame, col: str, title: str) -> go.Figure:
-    counts = df[col].value_counts().reset_index()
+    counts = df[col].astype(str).value_counts().reset_index()
     counts.columns = [col, "Count"]
-    if len(counts) > 7:
-        top_6 = counts.iloc[:6]
-        other_cnt = counts.iloc[6:]["Count"].sum()
+    if len(counts) > 6:
+        top_5 = counts.iloc[:5]
+        other_cnt = counts.iloc[5:]["Count"].sum()
         counts = pd.concat(
-            [top_6, pd.DataFrame([{col: "Other", "Count": other_cnt}])],
+            [top_5, pd.DataFrame([{col: "Other", "Count": other_cnt}])],
             ignore_index=True,
         )
 
@@ -517,10 +564,10 @@ def build_categorical_donut(df: pd.DataFrame, col: str, title: str) -> go.Figure
         names=col,
         values="Count",
         hole=0.55,
-        color_discrete_sequence=COLOR_PALETTE,
+        color_discrete_sequence=LIGHT_COLOR_PALETTE,
     )
-    fig.update_traces(textinfo="percent+label")
-    return apply_plotly_enterprise_theme(fig, title)
+    fig.update_traces(textinfo="percent+label", textposition="inside")
+    return apply_plotly_light_theme(fig, title)
 
 
 def build_date_trend(
@@ -533,9 +580,8 @@ def build_date_trend(
     if temp_df.empty:
         fig = go.Figure()
         fig.add_annotation(text="No valid date data available", showarrow=False)
-        return apply_plotly_enterprise_theme(fig, title)
+        return apply_plotly_light_theme(fig, title)
 
-    # Determine dynamic frequency based on date span
     min_d, max_d = temp_df[date_col].min(), temp_df[date_col].max()
     days_span = (max_d - min_d).days
 
@@ -548,9 +594,9 @@ def build_date_trend(
     else:
         freq, freq_label = "YE", "Yearly"
 
-    if cat_col and temp_df[cat_col].nunique() <= 8:
+    if cat_col and temp_df[cat_col].nunique() <= 6:
         grouped = (
-            temp_df.groupby([pd.Grouper(key=date_col, freq=freq), cat_col])
+            temp_df.groupby([pd.Grouper(key=date_col, freq=freq), cat_col], observed=False)
             .size()
             .reset_index(name="Count")
         )
@@ -560,11 +606,11 @@ def build_date_trend(
             y="Count",
             color=cat_col,
             markers=True,
-            color_discrete_sequence=COLOR_PALETTE,
+            color_discrete_sequence=LIGHT_COLOR_PALETTE,
         )
     else:
         grouped = (
-            temp_df.groupby(pd.Grouper(key=date_col, freq=freq))
+            temp_df.groupby(pd.Grouper(key=date_col, freq=freq), observed=False)
             .size()
             .reset_index(name="Count")
         )
@@ -575,16 +621,78 @@ def build_date_trend(
             markers=True,
             color_discrete_sequence=["#0284C7"],
         )
-        fig.update_traces(fillcolor="rgba(2, 132, 199, 0.15)")
+        fig.update_traces(fillcolor="rgba(2, 132, 199, 0.08)", line_width=2)
 
-    return apply_plotly_enterprise_theme(fig, f"{title} ({freq_label})")
+    return apply_plotly_light_theme(fig, f"{title} ({freq_label})")
 
 
-def build_num_by_cat(
-    df: pd.DataFrame, num_col: str, cat_col: str, title: str
-) -> go.Figure:
+def build_cumulative_trend(df: pd.DataFrame, date_col: str, title: str) -> go.Figure:
+    temp_df = df.copy()
+    temp_df[date_col] = pd.to_datetime(temp_df[date_col], errors="coerce")
+    temp_df = temp_df.dropna(subset=[date_col]).sort_values(by=date_col)
+
+    if temp_df.empty:
+        fig = go.Figure()
+        fig.add_annotation(text="No valid date data available", showarrow=False)
+        return apply_plotly_light_theme(fig, title)
+
+    grouped = temp_df.groupby(pd.Grouper(key=date_col, freq="D")).size().reset_index(name="DailyCount")
+    grouped["Cumulative"] = grouped["DailyCount"].cumsum()
+
+    fig = px.line(
+        grouped,
+        x=date_col,
+        y="Cumulative",
+        color_discrete_sequence=["#0D9488"],
+    )
+    fig.update_traces(line_width=2.5)
+    return apply_plotly_light_theme(fig, title)
+
+
+def build_pareto_cat(df: pd.DataFrame, col: str, title: str) -> go.Figure:
+    counts = df[col].astype(str).value_counts().reset_index()
+    counts.columns = [col, "Count"]
+    counts = counts.head(10)
+    counts["CumSum"] = counts["Count"].cumsum()
+    counts["CumPct"] = (counts["CumSum"] / counts["Count"].sum()) * 100
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Bar(
+            x=counts[col],
+            y=counts["Count"],
+            name="Count",
+            marker_color="#0284C7",
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=counts[col],
+            y=counts["CumPct"],
+            name="Cumulative %",
+            yaxis="y2",
+            mode="lines+markers",
+            line=dict(color="#EC4899", width=2),
+        )
+    )
+
+    fig.update_layout(
+        yaxis2=dict(
+            title="Cumulative %",
+            overlaying="y",
+            side="right",
+            range=[0, 105],
+            showgrid=False,
+        )
+    )
+    return apply_plotly_light_theme(fig, title)
+
+
+def build_num_by_cat(df: pd.DataFrame, num_col: str, cat_col: str, title: str) -> go.Figure:
+    temp_df = df.copy()
+    temp_df[num_col] = pd.to_numeric(temp_df[num_col], errors="coerce")
     grouped = (
-        df.groupby(cat_col)[num_col]
+        temp_df.groupby(cat_col, observed=False)[num_col]
         .sum()
         .reset_index()
         .sort_values(by=num_col, ascending=False)
@@ -598,18 +706,48 @@ def build_num_by_cat(
         color_discrete_sequence=["#0D9488"],
     )
     fig.update_traces(textposition="outside")
-    return apply_plotly_enterprise_theme(fig, title)
+    return apply_plotly_light_theme(fig, title)
 
 
 def build_num_distribution(df: pd.DataFrame, num_col: str, title: str) -> go.Figure:
+    clean_series = pd.to_numeric(df[num_col], errors="coerce").dropna()
     fig = px.histogram(
-        df,
+        clean_series,
         x=num_col,
         nbins=25,
         marginal="box",
         color_discrete_sequence=["#6366F1"],
     )
-    return apply_plotly_enterprise_theme(fig, title)
+    return apply_plotly_light_theme(fig, title)
+
+
+def build_scatter_num(
+    df: pd.DataFrame, num_x: str, num_y: str, cat_col: str | None, title: str
+) -> go.Figure:
+    temp_df = df.copy()
+    temp_df[num_x] = pd.to_numeric(temp_df[num_x], errors="coerce")
+    temp_df[num_y] = pd.to_numeric(temp_df[num_y], errors="coerce")
+    temp_df = temp_df.dropna(subset=[num_x, num_y])
+
+    if cat_col and temp_df[cat_col].nunique() <= 8:
+        fig = px.scatter(
+            temp_df,
+            x=num_x,
+            y=num_y,
+            color=cat_col,
+            opacity=0.75,
+            color_discrete_sequence=LIGHT_COLOR_PALETTE,
+        )
+    else:
+        fig = px.scatter(
+            temp_df,
+            x=num_x,
+            y=num_y,
+            opacity=0.75,
+            color_discrete_sequence=["#0284C7"],
+        )
+
+    return apply_plotly_light_theme(fig, title)
 
 
 # ==============================================================================
@@ -618,19 +756,13 @@ def build_num_distribution(df: pd.DataFrame, num_col: str, title: str) -> go.Fig
 def generate_excel_kpi_report(
     df: pd.DataFrame, classifications: dict[str, list[str]], quality: dict
 ) -> bytes:
-    """Generates a professional multi-sheet Excel workbook with formatted tables and metrics."""
+    """Generates a professional multi-sheet Excel workbook cleanly styled in light tones."""
     output = BytesIO()
     wb = openpyxl.Workbook()
 
-    # Style definitions
     font_header = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
-    font_title = Font(name="Calibri", size=16, bold=True, color="0F172A")
-    fill_navy = PatternFill(
-        start_color="1E293B", end_color="1E293B", fill_type="solid"
-    )
-    fill_accent = PatternFill(
-        start_color="F1F5F9", end_color="F1F5F9", fill_type="solid"
-    )
+    font_title = Font(name="Calibri", size=15, bold=True, color="0F172A")
+    fill_slate = PatternFill(start_color="334155", end_color="334155", fill_type="solid")
     thin_border = Border(
         left=Side(style="thin", color="CBD5E1"),
         right=Side(style="thin", color="CBD5E1"),
@@ -638,11 +770,10 @@ def generate_excel_kpi_report(
         bottom=Side(style="thin", color="CBD5E1"),
     )
 
-    # Sheet 1: Executive Overview
+    # Sheet 1: Overview
     ws_ov = wb.active
     ws_ov.title = "Executive Overview"
     ws_ov.views.sheetView[0].showGridLines = True
-
     ws_ov["A1"] = "ENTERPRISE KPI & DATA QUALITY SUMMARY"
     ws_ov["A1"].font = font_title
 
@@ -658,13 +789,13 @@ def generate_excel_kpi_report(
     ]
 
     ws_ov.cell(row=3, column=1, value="Metric").font = font_header
-    ws_ov.cell(row=3, column=1).fill = fill_navy
+    ws_ov.cell(row=3, column=1).fill = fill_slate
     ws_ov.cell(row=3, column=2, value="Value").font = font_header
-    ws_ov.cell(row=3, column=2).fill = fill_navy
+    ws_ov.cell(row=3, column=2).fill = fill_slate
 
     for idx, (m, v) in enumerate(ov_metrics, start=4):
         ws_ov.cell(row=idx, column=1, value=m).border = thin_border
-        cell_v = ws_ov.cell(row=idx, column=2, value=v)
+        cell_v = ws_ov.cell(row=idx, column=2, value=str(v))
         cell_v.border = thin_border
         cell_v.alignment = Alignment(horizontal="right")
 
@@ -676,35 +807,37 @@ def generate_excel_kpi_report(
     for col_num, header in enumerate(dq_df.columns, 1):
         c = ws_dq.cell(row=1, column=col_num, value=header)
         c.font = font_header
-        c.fill = fill_navy
+        c.fill = fill_slate
 
     for r_idx, row in enumerate(dq_df.itertuples(index=False), 2):
         for c_idx, val in enumerate(row, 1):
-            c = ws_dq.cell(row=r_idx, column=c_idx, value=val)
+            c = ws_dq.cell(row=r_idx, column=c_idx, value=str(val) if pd.isna(val) else val)
             c.border = thin_border
 
-    # Sheet 3: Numeric Field Summary
+    # Sheet 3: Numeric Summary
     if classifications["NUMERIC"]:
         ws_num = wb.create_sheet(title="Numeric Analytics")
         ws_num.views.sheetView[0].showGridLines = True
-        num_summary = df[classifications["NUMERIC"]].describe().T.reset_index()
-        num_summary.rename(columns={"index": "Numeric Column"}, inplace=True)
+        num_cols_clean = [c for c in classifications["NUMERIC"] if c in df.columns]
+        if num_cols_clean:
+            num_summary = df[num_cols_clean].apply(pd.to_numeric, errors="coerce").describe().T.reset_index()
+            num_summary.rename(columns={"index": "Numeric Column"}, inplace=True)
 
-        for col_num, header in enumerate(num_summary.columns, 1):
-            c = ws_num.cell(row=1, column=col_num, value=header)
-            c.font = font_header
-            c.fill = fill_navy
+            for col_num, header in enumerate(num_summary.columns, 1):
+                c = ws_num.cell(row=1, column=col_num, value=header)
+                c.font = font_header
+                c.fill = fill_slate
 
-        for r_idx, row in enumerate(num_summary.itertuples(index=False), 2):
-            for c_idx, val in enumerate(row, 1):
-                c = ws_num.cell(
-                    row=r_idx,
-                    column=c_idx,
-                    value=round(val, 2) if isinstance(val, (float, np.floating)) else val,
-                )
-                c.border = thin_border
+            for r_idx, row in enumerate(num_summary.itertuples(index=False), 2):
+                for c_idx, val in enumerate(row, 1):
+                    c = ws_num.cell(
+                        row=r_idx,
+                        column=c_idx,
+                        value=round(val, 2) if isinstance(val, (float, np.floating)) else str(val),
+                    )
+                    c.border = thin_border
 
-    # Sheet 4: Cleaned Data Sample (First 5000 rows max for performance)
+    # Sheet 4: Export Data Sample
     ws_data = wb.create_sheet(title="Data Export")
     ws_data.views.sheetView[0].showGridLines = True
     export_sample = df.head(5000)
@@ -712,14 +845,15 @@ def generate_excel_kpi_report(
     for col_num, header in enumerate(export_sample.columns, 1):
         c = ws_data.cell(row=1, column=col_num, value=header)
         c.font = font_header
-        c.fill = fill_navy
+        c.fill = fill_slate
 
     for r_idx, row in enumerate(export_sample.itertuples(index=False), 2):
         for c_idx, val in enumerate(row, 1):
-            c = ws_data.cell(row=r_idx, column=c_idx, value=str(val) if pd.isna(val) else val)
+            cell_val = str(val) if (pd.isna(val) or isinstance(val, (list, dict))) else val
+            c = ws_data.cell(row=r_idx, column=c_idx, value=cell_val)
             c.border = thin_border
 
-    # Auto-fit Column Widths across all sheets
+    # Auto-fit Column Widths
     for ws in wb.worksheets:
         for col in ws.columns:
             max_len = max(len(str(cell.value or "")) for cell in col)
@@ -750,31 +884,23 @@ def render_kpi_card(label: str, value: str | int | float, subtext: str = ""):
 # 9. MAIN APPLICATION CONTROLLER
 # ==============================================================================
 def main():
-    # --------------------------------------------------------------------------
-    # HEADER BANNER
-    # --------------------------------------------------------------------------
     st.markdown(
         """
         <div class="enterprise-header">
-            <h1>📊 Enterprise KPI & Analytics Dashboard</h1>
-            <p>Automated Dataset Intelligence, Visualizations & Data Quality Audit</p>
+            <h1>📊 Enterprise KPI Analytics Dashboard</h1>
+            <p>Automated Dataset Intelligence & Quality Reporting</p>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    # --------------------------------------------------------------------------
-    # SIDEBAR: FILE UPLOAD & CONFIGURATION
-    # --------------------------------------------------------------------------
     st.sidebar.title("📁 Data Source Setup")
     uploaded_file = st.sidebar.file_uploader(
         "Upload Dataset (.xlsx, .xls, .csv)", type=["xlsx", "xls", "csv"]
     )
 
     if not uploaded_file:
-        # Welcome & Instructions Area
         st.info("👈 Please upload an Excel or CSV file in the sidebar to generate the interactive dashboard.")
-
         col1, col2 = st.columns(2)
         with col1:
             st.markdown(
@@ -783,7 +909,7 @@ def main():
                 <div class="section-title">⚡ Autonomous Capabilities</div>
                 <ul>
                     <li><b>Zero Config Required:</b> Upload any file; column types are detected automatically.</li>
-                    <li><b>Dynamic KPI Generation:</b> Calculates key parameters based on actual dataset traits.</li>
+                    <li><b>Dynamic KPI Generation:</b> Calculates key metrics based on actual dataset traits.</li>
                     <li><b>Power BI Experience:</b> Real-time visual refresh with bi-directional filters.</li>
                     <li><b>Enterprise Excel Reports:</b> Multi-sheet report export with styled audits.</li>
                 </ul>
@@ -808,11 +934,10 @@ def main():
             )
         return
 
-    # Handle Excel Sheet Selection
     file_bytes = uploaded_file.getvalue()
     sheet_name = None
 
-    if uploaded_file.name.endswith((".xlsx", ".xls")):
+    if uploaded_file.name.lower().endswith((".xlsx", ".xls")):
         try:
             xl = pd.ExcelFile(BytesIO(file_bytes))
             sheets = xl.sheet_names
@@ -824,7 +949,6 @@ def main():
             st.error(f"Error reading Excel sheets: {e}")
             return
 
-    # Load and Clean
     with st.spinner("Analyzing dataset structure..."):
         raw_df, error_msg = load_and_clean_data(file_bytes, uploaded_file.name, sheet_name)
 
@@ -832,40 +956,31 @@ def main():
         st.error(f"Failed to process file: {error_msg}")
         return
 
-    # Classify Columns
     classifications = classify_columns(raw_df)
 
-    # --------------------------------------------------------------------------
-    # SIDEBAR & TOP INTERACTIVE FILTER SYSTEM
-    # --------------------------------------------------------------------------
+    # Sidebar Filter Controls
     st.sidebar.markdown("---")
     st.sidebar.title("🎛️ Dynamic Filters")
 
-    # Track filter states
     filtered_df = raw_df.copy()
-
-    # Create Filter Controls for Categorical Columns (Limit to top 5 categories)
     active_filters = {}
     filterable_cats = classifications["CATEGORICAL"][:5]
 
     for cat_col in filterable_cats:
-        options = sorted(list(raw_df[cat_col].dropna().unique()))
+        options = sorted([str(x) for x in raw_df[cat_col].dropna().unique()])
         selected = st.sidebar.multiselect(
             f"Filter {cat_col}", options=options, default=[], key=f"sb_{cat_col}"
         )
         if selected:
             active_filters[cat_col] = selected
 
-    # Apply Sidebar Filters to DataFrame
     for col, vals in active_filters.items():
-        filtered_df = filtered_df[filtered_df[col].isin(vals)]
+        filtered_df = filtered_df[filtered_df[col].astype(str).isin(vals)]
 
     if st.sidebar.button("Reset All Filters", use_container_width=True):
         st.rerun()
 
-    # --------------------------------------------------------------------------
-    # 1. EXECUTIVE KPI CARDS (ABOVE FILTERS)
-    # --------------------------------------------------------------------------
+    # 1. Executive KPI Cards
     quality_metrics = calculate_data_quality(filtered_df, classifications)
 
     kpi_cols = st.columns(5)
@@ -880,23 +995,21 @@ def main():
     with kpi_cols[4]:
         render_kpi_card("Quality Score", f"{quality_metrics['overall_quality']}%", f"{quality_metrics['missing_pct']}% missing")
 
-    # Dynamic Numeric Metric Cards
     if classifications["NUMERIC"]:
         st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
         top_num = classifications["NUMERIC"][0]
+        num_series = pd.to_numeric(filtered_df[top_num], errors="coerce")
         num_cols = st.columns(4)
         with num_cols[0]:
-            render_kpi_card(f"Total {top_num}", f"{filtered_df[top_num].sum():,.2f}", "Sum")
+            render_kpi_card(f"Total {top_num}", f"{num_series.sum():,.2f}", "Sum")
         with num_cols[1]:
-            render_kpi_card(f"Average {top_num}", f"{filtered_df[top_num].mean():,.2f}", "Mean")
+            render_kpi_card(f"Average {top_num}", f"{num_series.mean():,.2f}", "Mean")
         with num_cols[2]:
-            render_kpi_card(f"Max {top_num}", f"{filtered_df[top_num].max():,.2f}", "Peak")
+            render_kpi_card(f"Max {top_num}", f"{num_series.max():,.2f}", "Peak")
         with num_cols[3]:
-            render_kpi_card(f"Min {top_num}", f"{filtered_df[top_num].min():,.2f}", "Floor")
+            render_kpi_card(f"Min {top_num}", f"{num_series.min():,.2f}", "Floor")
 
-    # --------------------------------------------------------------------------
-    # 2. AUTOMATIC INSIGHTS DASHBOARD (AUTOMATIC VISUALIZATIONS)
-    # --------------------------------------------------------------------------
+    # 2. Automatic Insights Dashboard (Multi-Row Visual Grid)
     st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
     st.markdown('<div class="section-title">⚡ Automatic Dashboard Insights</div>', unsafe_allow_html=True)
 
@@ -905,21 +1018,23 @@ def main():
     if not visual_specs:
         st.warning("Could not automatically select high-confidence charts. Use the interactive tabs below.")
     else:
-        # Render charts in dynamic grid layouts
         idx = 0
         while idx < len(visual_specs):
             spec = visual_specs[idx]
-
-            # Full Width Chart
             if spec["span"] == 12:
                 with st.container():
                     if spec["type"] == "date_trend":
                         fig = build_date_trend(
                             filtered_df, spec["date_col"], spec["cat_col"], spec["title"]
                         )
-                        st.plotly_chart(fig, use_container_width=True)
+                    elif spec["type"] == "scatter_num":
+                        fig = build_scatter_num(
+                            filtered_df, spec["num_x"], spec["num_y"], spec["cat_col"], spec["title"]
+                        )
+                    elif spec["type"] == "pareto_cat":
+                        fig = build_pareto_cat(filtered_df, spec["col"], spec["title"])
+                    st.plotly_chart(fig, use_container_width=True)
                 idx += 1
-            # Pair of Half Width Charts
             else:
                 c1, c2 = st.columns(2)
                 with c1:
@@ -927,6 +1042,10 @@ def main():
                         fig = build_categorical_bar(filtered_df, spec["col"], spec["title"])
                     elif spec["type"] == "cat_donut":
                         fig = build_categorical_donut(filtered_df, spec["col"], spec["title"])
+                    elif spec["type"] == "cumulative_trend":
+                        fig = build_cumulative_trend(filtered_df, spec["date_col"], spec["title"])
+                    elif spec["type"] == "pareto_cat":
+                        fig = build_pareto_cat(filtered_df, spec["col"], spec["title"])
                     elif spec["type"] == "num_by_cat":
                         fig = build_num_by_cat(
                             filtered_df, spec["num_col"], spec["cat_col"], spec["title"]
@@ -943,6 +1062,10 @@ def main():
                             fig2 = build_categorical_bar(filtered_df, spec2["col"], spec2["title"])
                         elif spec2["type"] == "cat_donut":
                             fig2 = build_categorical_donut(filtered_df, spec2["col"], spec2["title"])
+                        elif spec2["type"] == "cumulative_trend":
+                            fig2 = build_cumulative_trend(filtered_df, spec2["date_col"], spec2["title"])
+                        elif spec2["type"] == "pareto_cat":
+                            fig2 = build_pareto_cat(filtered_df, spec2["col"], spec2["title"])
                         elif spec2["type"] == "num_by_cat":
                             fig2 = build_num_by_cat(
                                 filtered_df, spec2["num_col"], spec2["cat_col"], spec2["title"]
@@ -952,9 +1075,7 @@ def main():
                         st.plotly_chart(fig2, use_container_width=True)
                     idx += 1
 
-    # --------------------------------------------------------------------------
-    # 3. INTERACTIVE ANALYSIS & DATA EXPLORER TABS
-    # --------------------------------------------------------------------------
+    # 3. Interactive Tabs
     st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
     st.markdown('<div class="section-title">🔍 Detailed Interactive Analysis</div>', unsafe_allow_html=True)
 
@@ -968,7 +1089,6 @@ def main():
         ]
     )
 
-    # --- TAB 1: DISTRIBUTION ---
     with tab_dist:
         if classifications["CATEGORICAL"]:
             c1, c2 = st.columns([1, 2])
@@ -976,10 +1096,9 @@ def main():
                 selected_cat = st.selectbox(
                     "Select Categorical Field", classifications["CATEGORICAL"], key="dist_sel"
                 )
-                chart_type = st.radio("Chart Type", ["Bar Chart", "Donut Chart"], key="dist_type")
+                chart_type = st.radio("Chart Type", ["Bar Chart", "Donut Chart", "Pareto Chart"], key="dist_type")
 
-                # Distribution Summary Table
-                dist_table = filtered_df[selected_cat].value_counts(dropna=False).reset_index()
+                dist_table = filtered_df[selected_cat].astype(str).value_counts(dropna=False).reset_index()
                 dist_table.columns = [selected_cat, "Count"]
                 dist_table["Percentage"] = (
                     dist_table["Count"] / dist_table["Count"].sum() * 100
@@ -991,15 +1110,18 @@ def main():
                     fig = build_categorical_bar(
                         filtered_df, selected_cat, f"{selected_cat} Distribution"
                     )
-                else:
+                elif chart_type == "Donut Chart":
                     fig = build_categorical_donut(
                         filtered_df, selected_cat, f"{selected_cat} Share"
+                    )
+                else:
+                    fig = build_pareto_cat(
+                        filtered_df, selected_cat, f"{selected_cat} Pareto Analysis"
                     )
                 st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("No categorical columns detected in this dataset.")
 
-    # --- TAB 2: TRENDS ---
     with tab_trends:
         if classifications["DATE"]:
             c1, c2 = st.columns([1, 2])
@@ -1012,18 +1134,21 @@ def main():
                     [None] + classifications["CATEGORICAL"],
                     key="trend_cat_sel",
                 )
+                trend_mode = st.radio("Trend Type", ["Standard Trend", "Cumulative Growth"], key="trend_mode")
             with c2:
-                fig = build_date_trend(
-                    filtered_df,
-                    selected_date,
-                    breakdown_cat,
-                    f"Trend Over Time by {selected_date}",
-                )
+                if trend_mode == "Cumulative Growth":
+                    fig = build_cumulative_trend(filtered_df, selected_date, f"Cumulative Growth Over Time ({selected_date})")
+                else:
+                    fig = build_date_trend(
+                        filtered_df,
+                        selected_date,
+                        breakdown_cat,
+                        f"Trend Over Time by {selected_date}",
+                    )
                 st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("No date columns detected in this dataset.")
 
-    # --- TAB 3: NUMERIC METRICS ---
     with tab_num:
         if classifications["NUMERIC"]:
             c1, c2 = st.columns([1, 2])
@@ -1031,7 +1156,7 @@ def main():
                 selected_num = st.selectbox(
                     "Select Numeric Field", classifications["NUMERIC"], key="num_sel"
                 )
-                s = filtered_df[selected_num].dropna()
+                s = pd.to_numeric(filtered_df[selected_num], errors="coerce").dropna()
 
                 stats_df = pd.DataFrame(
                     {
@@ -1046,12 +1171,12 @@ def main():
                             "Null Count",
                         ],
                         "Value": [
-                            f"{s.sum():,.2f}",
-                            f"{s.mean():,.2f}",
-                            f"{s.median():,.2f}",
-                            f"{s.std():,.2f}",
-                            f"{s.min():,.2f}",
-                            f"{s.max():,.2f}",
+                            f"{s.sum():,.2f}" if not s.empty else "0.00",
+                            f"{s.mean():,.2f}" if not s.empty else "0.00",
+                            f"{s.median():,.2f}" if not s.empty else "0.00",
+                            f"{s.std():,.2f}" if not s.empty else "0.00",
+                            f"{s.min():,.2f}" if not s.empty else "0.00",
+                            f"{s.max():,.2f}" if not s.empty else "0.00",
                             f"{len(s):,}",
                             f"{filtered_df[selected_num].isnull().sum():,}",
                         ],
@@ -1067,7 +1192,6 @@ def main():
         else:
             st.info("No numeric columns detected in this dataset.")
 
-    # --- TAB 4: DATA QUALITY AUDIT ---
     with tab_quality:
         st.markdown("##### Column Quality Breakdown")
         st.dataframe(
@@ -1076,7 +1200,6 @@ def main():
             hide_index=True,
         )
 
-    # --- TAB 5: DATA EXPLORER ---
     with tab_explorer:
         c1, c2 = st.columns([3, 1])
         with c1:
@@ -1101,9 +1224,7 @@ def main():
 
         st.dataframe(explorer_df, use_container_width=True, hide_index=True)
 
-    # --------------------------------------------------------------------------
-    # 4. EXPORT & REPORT DOWNLOAD AREA
-    # --------------------------------------------------------------------------
+    # 4. Exports
     st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
     st.markdown('<div class="section-title">📥 Export & Reports</div>', unsafe_allow_html=True)
 
