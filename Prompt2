@@ -1,62 +1,1134 @@
-The End-to-End Deployment Flow
-[Excel Checklist] ➔ [CyberArk] ➔ [Secure VM Jumpbox] ➔ [Network Drive / PPD] ➔ [Jenkins / Ansible] ➔ [Target Linux Server] ➔ [Marketplace]
-Step 1: Read the Blueprint (The Start)
-Where to go: Open the Evidence Excel Sheet (the Operational Runbook).
+"""
+Enterprise Streamlit Analytics Dashboard & KPI Generator
+Single-file architecture for automatic data classification, dynamic visualizations,
+Power BI-style filtering, data quality auditing, and multi-sheet Excel export.
+"""
 
-What to get: Get the specific release version number (e.g., 26.6.0-RELEASE-SNAPSHOT), the target server names, and the exact step-by-step checklist of instructions.
+from io import BytesIO
+import re
 
-Connection made: This step connects human instructions to the software tools. You follow this line-by-line to know what tool to open next.
+import numpy as np
+import openpyxl
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as io_go
+import plotly.graph_objects as go
+import streamlit as st
 
-Step 2: Establish Security Clearance
-Where to go: Log into CyberArk.
+# ==============================================================================
+# 1. PAGE CONFIGURATION & CUSTOM ENTERPRISE CSS
+# ==============================================================================
+st.set_page_config(
+    page_title="Enterprise KPI Analytics Platform",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
-What to get: Request administrative access or a temporary security token for the target application environment.
+ENTERPRISE_CSS = """
+<style>
+    /* Main Background & Fonts */
+    .stApp {
+        background-color: #F8FAFC;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    
+    /* Global Container Padding */
+    .block-container {
+        padding-top: 1.5rem;
+        padding-bottom: 2rem;
+        padding-left: 2rem;
+        padding-right: 2rem;
+    }
+    
+    /* Enterprise Header Banner */
+    .enterprise-header {
+        background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+        padding: 1.8rem 2rem;
+        border-radius: 12px;
+        color: #FFFFFF;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    .enterprise-header h1 {
+        color: #FFFFFF !important;
+        font-size: 1.8rem !important;
+        font-weight: 700 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        letter-spacing: -0.02em;
+    }
+    .enterprise-header p {
+        color: #94A3B8 !important;
+        font-size: 0.95rem !important;
+        margin: 0.3rem 0 0 0 !important;
+    }
 
-Connection made: CyberArk links your personal corporate identity to the highly privileged root or system application credentials required to modify backend environments.
+    /* KPI Cards Styling */
+    .kpi-card {
+        background-color: #FFFFFF;
+        border-radius: 10px;
+        padding: 1.25rem 1rem;
+        border: 1px solid #E2E8F0;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        text-align: center;
+        height: 100%;
+    }
+    .kpi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+    }
+    .kpi-label {
+        color: #64748B;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.4rem;
+    }
+    .kpi-value {
+        color: #0F172A;
+        font-size: 1.6rem;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+    .kpi-subtext {
+        color: #3B82F6;
+        font-size: 0.75rem;
+        font-weight: 500;
+        margin-top: 0.3rem;
+    }
 
-Step 3: Enter the Isolated Sandbox
-Where to go: Click the "computer symbol" to launch your secure Virtual Machine (VM) / Citrix Jumpbox.
+    /* Section Card Containers */
+    .section-container {
+        background-color: #FFFFFF;
+        border-radius: 10px;
+        border: 1px solid #E2E8F0;
+        padding: 1.25rem;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+    }
+    
+    /* Headers & Dividers */
+    .section-title {
+        color: #0F172A;
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    /* Streamlit Components Tweaks */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: #E2E8F0;
+        padding: 4px;
+        border-radius: 8px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 40px;
+        white-space: pre-wrap;
+        border-radius: 6px;
+        font-weight: 600;
+        color: #475569;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #FFFFFF !important;
+        color: #0F172A !important;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+    
+    /* Hide Streamlit Boilerplate */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+</style>
+"""
+st.markdown(ENTERPRISE_CSS, unsafe_allow_html=True)
 
-What to get: An isolated, secure network workspace that sits inside the bank's internal firewall.
 
-Connection made: Your local laptop establishes a secure remote-desktop connection to this VM. From this point forward, all further actions, tool openings, and connections happen entirely inside this secure VM, not on your physical computer.
+# ==============================================================================
+# 2. DATA INGESTION & CLEANING
+# ==============================================================================
+@st.cache_data(show_spinner=False)
+def load_and_clean_data(
+    file_bytes: bytes, file_name: str, sheet_name: str | None = None
+) -> tuple[pd.DataFrame | None, str | None]:
+    """Reads Excel or CSV files, cleans column names, drops empty rows/cols."""
+    try:
+        buffer = BytesIO(file_bytes)
+        if file_name.endswith((".xlsx", ".xls")):
+            if sheet_name:
+                df = pd.read_excel(buffer, sheet_name=sheet_name)
+            else:
+                xl = pd.ExcelFile(buffer)
+                sheet_name = xl.sheet_names[0]
+                df = pd.read_excel(buffer, sheet_name=sheet_name)
+        else:
+            df = pd.read_csv(buffer)
 
-Step 4: Retrieve the Deployment Code Assets
-Where to go: Navigate to the designated secure network file share / PPD (Pre-Production) Drive.
+        if df.empty:
+            return None, "Uploaded file/worksheet contains no data."
 
-What to get: Locate the project folder (Eurosycomore). Inside, grab the packaged deployment files containing the new database compliance scripts (.sql) and data transformation rules (WTX maps).
+        # Clean Columns
+        df.columns = [str(col).strip() for col in df.columns]
 
-Where to put it: These files are staged here so the automation pipeline can access them.
+        # Drop completely empty rows and columns
+        df = df.dropna(how="all").dropna(axis=1, how="all")
 
-Step 5: Trigger the Automation Pipeline
-Where to go: Open CloudBees Jenkins in the web browser (inside the VM).
+        if df.empty:
+            return None, "Dataset became empty after dropping fully blank rows/columns."
 
-What to get: Find the specific pipeline build job (e.g., esy-deploy-aap).
+        return df, None
+    except Exception as e:
+        return None, f"Error processing file: {str(e)}"
 
-Connection made: You input the parameters (the version number and environment targets from Step 1) and hit run. Jenkins links directly to Red Hat Ansible by triggering an Ansible playbook job (e.g., j-APO2861-1412-esy-esy-deploy) and passing it those parameters.
 
-Step 6: Live Execution on the Engine Room
-Where to go: Open SuperPutty (or PowerShell) to SSH directly into the target Linux server host (e.g., s01v19925672).
+# ==============================================================================
+# 3. GENERIC COLUMN CLASSIFICATION ENGINE
+# ==============================================================================
+def classify_columns(df: pd.DataFrame) -> dict[str, list[str]]:
+    """Generic detection engine classifying columns into ID, DATE, CATEGORICAL, NUMERIC, and TEXT."""
+    classifications: dict[str, list[str]] = {
+        "ID": [],
+        "DATE": [],
+        "CATEGORICAL": [],
+        "NUMERIC": [],
+        "TEXT": [],
+    }
 
-What to get: Real-time visibility into the Linux command line (/home/sybase/tmp/...).
+    id_keywords = ["id", "key", "identifier", "code", "num", "number", "ref", "uuid", "guid", "pk", "fk"]
 
-Connection made: Ansible logs into this target Linux server via SSH using the credentials authorized back in Step 2.
+    for col in df.columns:
+        series = df[col].dropna()
+        col_lower = str(col).lower()
+        total_len = len(df[col])
+        non_null_len = len(series)
 
-What happens here:
+        if non_null_len == 0:
+            classifications["TEXT"].append(col)
+            continue
 
-Ansible commands the server to Stop active WTX data processing services so files don't collide.
+        n_unique = series.nunique()
+        uniqueness_ratio = n_unique / non_null_len
 
-Ansible copies the .sql and WTX files from the staged drive (Step 4) onto the server.
+        # 1. DATE DETECTION
+        is_date = False
+        if pd.api.types.is_datetime64_any_dtype(series):
+            is_date = True
+        elif series.dtype == "object" or pd.api.types.is_string_dtype(series):
+            # Check string dates without raising exceptions
+            sample = series.astype(str).str.strip().head(100)
+            date_matches = 0
+            for val in sample:
+                if len(val) >= 6 and re.search(r"\d{2,4}[-/\.]\d{1,2}[-/\.]\d{1,2}", val):
+                    date_matches += 1
+            if date_matches / len(sample) > 0.6:
+                try:
+                    pd.to_datetime(series.head(50), format="mixed", errors="raise")
+                    is_date = True
+                except (ValueError, TypeError):
+                    pass
 
-The server executes the SQL scripts to update the database tables, skipping unchanged files and logging successes.
+        if is_date:
+            classifications["DATE"].append(col)
+            continue
 
-Ansible commands the server to Start the services back up.
+        # 2. ID DETECTION
+        has_id_keyword = any(kw in col_lower for kw in id_keywords)
+        if uniqueness_ratio > 0.95 and total_len > 10:
+            if has_id_keyword or series.dtype == "object":
+                classifications["ID"].append(col)
+                continue
+        elif has_id_keyword and uniqueness_ratio > 0.7:
+            classifications["ID"].append(col)
+            continue
 
-Step 7: Final Verification (The End)
-Where to go: Open the internal Organization Marketplace Catalogue via the browser.
+        # 3. NUMERIC DETECTION
+        if pd.api.types.is_numeric_dtype(series):
+            # Treat numeric with tiny integer range as categorical if low cardinality
+            if n_unique <= 10 and (n_unique / non_null_len) < 0.05:
+                classifications["CATEGORICAL"].append(col)
+            else:
+                classifications["NUMERIC"].append(col)
+            continue
 
-What to get: Look at the system registry dashboard for Eurosycomore.
+        # Attempt string-to-numeric coercion check
+        if series.dtype == "object":
+            sample_str = series.astype(str).str.replace(",", "").str.replace("$", "").str.strip()
+            numeric_coerced = pd.to_numeric(sample_str, errors="coerce")
+            if numeric_coerced.notnull().sum() / non_null_len > 0.85:
+                classifications["NUMERIC"].append(col)
+                continue
 
-Connection made: The marketplace pulls live configuration data directly from the server environment. You verify that the displayed version has successfully changed to the new deployment version.
+        # 4. CATEGORICAL VS TEXT
+        avg_str_len = series.astype(str).str.len().mean()
+        if avg_str_len > 60:
+            classifications["TEXT"].append(col)
+        elif n_unique <= 50 or (uniqueness_ratio <= 0.20 and avg_str_len <= 40):
+            classifications["CATEGORICAL"].append(col)
+        else:
+            classifications["TEXT"].append(col)
 
-Where to put the results: Take screenshots of the successful SuperPutty completion log and the updated Marketplace version, and put them back into the Evidence Excel Sheet from Step 1 to mark the deployment as complete and audited.
+    return classifications
+
+
+# ==============================================================================
+# 4. DATA QUALITY AUDITOR
+# ==============================================================================
+def calculate_data_quality(df: pd.DataFrame, classifications: dict[str, list[str]]) -> dict:
+    """Calculates granular and overall data quality metrics."""
+    total_rows = len(df)
+    total_cols = len(df.columns)
+    total_cells = total_rows * total_cols
+
+    missing_cells = df.isnull().sum().sum()
+    missing_pct = (missing_cells / total_cells * 100) if total_cells > 0 else 0.0
+
+    duplicate_rows = df.duplicated().sum()
+    duplicate_pct = (duplicate_rows / total_rows * 100) if total_rows > 0 else 0.0
+
+    completeness_score = max(0.0, 100.0 - missing_pct)
+    uniqueness_score = max(0.0, 100.0 - duplicate_pct)
+
+    overall_quality = round((completeness_score * 0.7) + (uniqueness_score * 0.3), 1)
+
+    column_stats = []
+    for col in df.columns:
+        col_type = next((k for k, v in classifications.items() if col in v), "UNKNOWN")
+        null_cnt = df[col].isnull().sum()
+        null_pct = (null_cnt / total_rows * 100) if total_rows > 0 else 0.0
+        uniq_cnt = df[col].nunique()
+
+        column_stats.append(
+            {
+                "Column Name": col,
+                "Detected Type": col_type,
+                "Native Dtype": str(df[col].dtype),
+                "Unique Values": uniq_cnt,
+                "Missing Values": null_cnt,
+                "Missing %": round(null_pct, 1),
+            }
+        )
+
+    return {
+        "total_rows": total_rows,
+        "total_cols": total_cols,
+        "missing_cells": missing_cells,
+        "missing_pct": round(missing_pct, 1),
+        "duplicate_rows": duplicate_rows,
+        "duplicate_pct": round(duplicate_pct, 1),
+        "completeness_score": round(completeness_score, 1),
+        "uniqueness_score": round(uniqueness_score, 1),
+        "overall_quality": overall_quality,
+        "column_stats": pd.DataFrame(column_stats),
+    }
+
+
+# ==============================================================================
+# 5. AUTOMATIC INTELLIGENT CHART SELECTION & SCORING ENGINE
+# ==============================================================================
+def select_automatic_insights(
+    df: pd.DataFrame, classifications: dict[str, list[str]]
+) -> list[dict]:
+    """Selects and scores the top 4-6 visuals for the immediate dashboard."""
+    visual_specs = []
+
+    # Scoring Categorical Columns
+    cat_scores = []
+    for col in classifications["CATEGORICAL"]:
+        n_uniq = df[col].nunique()
+        if 2 <= n_uniq <= 20:
+            score = 10.0
+            col_lower = col.lower()
+            if any(kw in col_lower for kw in ["status", "phase", "type", "category", "dept", "department", "region", "priority", "severity"]):
+                score += 5.0
+            if 3 <= n_uniq <= 8:
+                score += 3.0
+            cat_scores.append((score, col))
+
+    cat_scores.sort(key=lambda x: x[0], reverse=True)
+    top_cats = [c[1] for c in cat_scores]
+
+    # Scoring Date Columns
+    date_scores = []
+    for col in classifications["DATE"]:
+        score = 10.0
+        col_lower = col.lower()
+        if any(kw in col_lower for kw in ["created", "date", "timestamp", "start", "opened"]):
+            score += 5.0
+        date_scores.append((score, col))
+    date_scores.sort(key=lambda x: x[0], reverse=True)
+    top_dates = [d[1] for d in date_scores]
+
+    # Scoring Numeric Columns
+    num_scores = []
+    for col in classifications["NUMERIC"]:
+        score = 10.0
+        col_lower = col.lower()
+        if any(kw in col_lower for kw in ["amount", "sales", "revenue", "total", "cost", "price", "duration", "score", "qty", "quantity"]):
+            score += 5.0
+        num_scores.append((score, col))
+    num_scores.sort(key=lambda x: x[0], reverse=True)
+    top_nums = [n[1] for n in num_scores]
+
+    # 1. Primary Categorical Distribution (Bar Chart)
+    if top_cats:
+        visual_specs.append(
+            {
+                "type": "cat_bar",
+                "title": f"Distribution by {top_cats[0]}",
+                "col": top_cats[0],
+                "span": 6,
+            }
+        )
+
+    # 2. Secondary Categorical Share (Donut Chart)
+    if len(top_cats) > 1:
+        visual_specs.append(
+            {
+                "type": "cat_donut",
+                "title": f"Share by {top_cats[1]}",
+                "col": top_cats[1],
+                "span": 6,
+            }
+        )
+    elif top_cats:
+        visual_specs.append(
+            {
+                "type": "cat_donut",
+                "title": f"Proportional Share of {top_cats[0]}",
+                "col": top_cats[0],
+                "span": 6,
+            }
+        )
+
+    # 3. Date Trend Chart
+    if top_dates:
+        visual_specs.append(
+            {
+                "type": "date_trend",
+                "title": f"Volume Trend Over Time ({top_dates[0]})",
+                "date_col": top_dates[0],
+                "cat_col": top_cats[0] if top_cats else None,
+                "span": 12,
+            }
+        )
+
+    # 4. Numeric Metric Breakdown or Distribution
+    if top_nums:
+        if top_cats:
+            visual_specs.append(
+                {
+                    "type": "num_by_cat",
+                    "title": f"Total {top_nums[0]} by {top_cats[0]}",
+                    "num_col": top_nums[0],
+                    "cat_col": top_cats[0],
+                    "span": 6,
+                }
+            )
+        visual_specs.append(
+            {
+                "type": "num_dist",
+                "title": f"Distribution of {top_nums[0]}",
+                "num_col": top_nums[0],
+                "span": 6 if top_cats else 12,
+            }
+        )
+
+    return visual_specs[:5]
+
+
+# ==============================================================================
+# 6. PLOTLY CHART BUILDERS (ENTERPRISE THEME)
+# ==============================================================================
+COLOR_PALETTE = ["#0284C7", "#0D9488", "#6366F1", "#8B5CF6", "#EC4899", "#F59E0B", "#10B981", "#64748B"]
+
+
+def apply_plotly_enterprise_theme(fig: go.Figure, title: str) -> go.Figure:
+    """Applies clean enterprise aesthetic to Plotly figures."""
+    fig.update_layout(
+        title={"text": f"<b>{title}</b>", "font": {"size": 14, "color": "#0F172A"}},
+        margin=dict(l=20, r=20, t=40, b=20),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Inter, sans-serif", color="#475569", size=12),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            title="",
+        ),
+        xaxis=dict(
+            showgrid=True,
+            gridcolor="#F1F5F9",
+            zeroline=False,
+            showline=True,
+            linecolor="#CBD5E1",
+        ),
+        yaxis=dict(
+            showgrid=True,
+            gridcolor="#F1F5F9",
+            zeroline=False,
+            showline=True,
+            linecolor="#CBD5E1",
+        ),
+    )
+    return fig
+
+
+def build_categorical_bar(df: pd.DataFrame, col: str, title: str) -> go.Figure:
+    counts = df[col].value_counts().reset_index()
+    counts.columns = [col, "Count"]
+    counts = counts.head(15)
+
+    fig = px.bar(
+        counts,
+        x="Count",
+        y=col,
+        orientation="h",
+        text="Count",
+        color_discrete_sequence=["#0284C7"],
+    )
+    fig.update_traces(textposition="outside", marker_radius=4)
+    fig.update_layout(yaxis=dict(autorange="reversed"))
+    return apply_plotly_enterprise_theme(fig, title)
+
+
+def build_categorical_donut(df: pd.DataFrame, col: str, title: str) -> go.Figure:
+    counts = df[col].value_counts().reset_index()
+    counts.columns = [col, "Count"]
+    if len(counts) > 7:
+        top_6 = counts.iloc[:6]
+        other_cnt = counts.iloc[6:]["Count"].sum()
+        counts = pd.concat(
+            [top_6, pd.DataFrame([{col: "Other", "Count": other_cnt}])],
+            ignore_index=True,
+        )
+
+    fig = px.pie(
+        counts,
+        names=col,
+        values="Count",
+        hole=0.55,
+        color_discrete_sequence=COLOR_PALETTE,
+    )
+    fig.update_traces(textinfo="percent+label")
+    return apply_plotly_enterprise_theme(fig, title)
+
+
+def build_date_trend(
+    df: pd.DataFrame, date_col: str, cat_col: str | None, title: str
+) -> go.Figure:
+    temp_df = df.copy()
+    temp_df[date_col] = pd.to_datetime(temp_df[date_col], errors="coerce")
+    temp_df = temp_df.dropna(subset=[date_col])
+
+    if temp_df.empty:
+        fig = go.Figure()
+        fig.add_annotation(text="No valid date data available", showarrow=False)
+        return apply_plotly_enterprise_theme(fig, title)
+
+    # Determine dynamic frequency based on date span
+    min_d, max_d = temp_df[date_col].min(), temp_df[date_col].max()
+    days_span = (max_d - min_d).days
+
+    if days_span <= 30:
+        freq, freq_label = "D", "Daily"
+    elif days_span <= 180:
+        freq, freq_label = "W-MON", "Weekly"
+    elif days_span <= 730:
+        freq, freq_label = "ME", "Monthly"
+    else:
+        freq, freq_label = "YE", "Yearly"
+
+    if cat_col and temp_df[cat_col].nunique() <= 8:
+        grouped = (
+            temp_df.groupby([pd.Grouper(key=date_col, freq=freq), cat_col])
+            .size()
+            .reset_index(name="Count")
+        )
+        fig = px.line(
+            grouped,
+            x=date_col,
+            y="Count",
+            color=cat_col,
+            markers=True,
+            color_discrete_sequence=COLOR_PALETTE,
+        )
+    else:
+        grouped = (
+            temp_df.groupby(pd.Grouper(key=date_col, freq=freq))
+            .size()
+            .reset_index(name="Count")
+        )
+        fig = px.area(
+            grouped,
+            x=date_col,
+            y="Count",
+            markers=True,
+            color_discrete_sequence=["#0284C7"],
+        )
+        fig.update_traces(fillcolor="rgba(2, 132, 199, 0.15)")
+
+    return apply_plotly_enterprise_theme(fig, f"{title} ({freq_label})")
+
+
+def build_num_by_cat(
+    df: pd.DataFrame, num_col: str, cat_col: str, title: str
+) -> go.Figure:
+    grouped = (
+        df.groupby(cat_col)[num_col]
+        .sum()
+        .reset_index()
+        .sort_values(by=num_col, ascending=False)
+        .head(10)
+    )
+    fig = px.bar(
+        grouped,
+        x=cat_col,
+        y=num_col,
+        text_auto=".2s",
+        color_discrete_sequence=["#0D9488"],
+    )
+    fig.update_traces(textposition="outside")
+    return apply_plotly_enterprise_theme(fig, title)
+
+
+def build_num_distribution(df: pd.DataFrame, num_col: str, title: str) -> go.Figure:
+    fig = px.histogram(
+        df,
+        x=num_col,
+        nbins=25,
+        marginal="box",
+        color_discrete_sequence=["#6366F1"],
+    )
+    return apply_plotly_enterprise_theme(fig, title)
+
+
+# ==============================================================================
+# 7. EXCEL REPORT GENERATOR
+# ==============================================================================
+def generate_excel_kpi_report(
+    df: pd.DataFrame, classifications: dict[str, list[str]], quality: dict
+) -> bytes:
+    """Generates a professional multi-sheet Excel workbook with formatted tables and metrics."""
+    output = BytesIO()
+    wb = openpyxl.Workbook()
+
+    # Style definitions
+    font_header = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+    font_title = Font(name="Calibri", size=16, bold=True, color="0F172A")
+    fill_navy = PatternFill(
+        start_color="1E293B", end_color="1E293B", fill_type="solid"
+    )
+    fill_accent = PatternFill(
+        start_color="F1F5F9", end_color="F1F5F9", fill_type="solid"
+    )
+    thin_border = Border(
+        left=Side(style="thin", color="CBD5E1"),
+        right=Side(style="thin", color="CBD5E1"),
+        top=Side(style="thin", color="CBD5E1"),
+        bottom=Side(style="thin", color="CBD5E1"),
+    )
+
+    # Sheet 1: Executive Overview
+    ws_ov = wb.active
+    ws_ov.title = "Executive Overview"
+    ws_ov.views.sheetView[0].showGridLines = True
+
+    ws_ov["A1"] = "ENTERPRISE KPI & DATA QUALITY SUMMARY"
+    ws_ov["A1"].font = font_title
+
+    ov_metrics = [
+        ("Total Record Count", quality["total_rows"]),
+        ("Total Features / Columns", quality["total_cols"]),
+        ("Overall Data Quality Score", f"{quality['overall_quality']}%"),
+        ("Completeness Score", f"{quality['completeness_score']}%"),
+        ("Duplicate Row Count", quality["duplicate_rows"]),
+        ("Date Fields Detected", len(classifications["DATE"])),
+        ("Categorical Fields Detected", len(classifications["CATEGORICAL"])),
+        ("Numeric Fields Detected", len(classifications["NUMERIC"])),
+    ]
+
+    ws_ov.cell(row=3, column=1, value="Metric").font = font_header
+    ws_ov.cell(row=3, column=1).fill = fill_navy
+    ws_ov.cell(row=3, column=2, value="Value").font = font_header
+    ws_ov.cell(row=3, column=2).fill = fill_navy
+
+    for idx, (m, v) in enumerate(ov_metrics, start=4):
+        ws_ov.cell(row=idx, column=1, value=m).border = thin_border
+        cell_v = ws_ov.cell(row=idx, column=2, value=v)
+        cell_v.border = thin_border
+        cell_v.alignment = Alignment(horizontal="right")
+
+    # Sheet 2: Data Quality Audit
+    ws_dq = wb.create_sheet(title="Data Quality Audit")
+    ws_dq.views.sheetView[0].showGridLines = True
+    dq_df = quality["column_stats"]
+
+    for col_num, header in enumerate(dq_df.columns, 1):
+        c = ws_dq.cell(row=1, column=col_num, value=header)
+        c.font = font_header
+        c.fill = fill_navy
+
+    for r_idx, row in enumerate(dq_df.itertuples(index=False), 2):
+        for c_idx, val in enumerate(row, 1):
+            c = ws_dq.cell(row=r_idx, column=c_idx, value=val)
+            c.border = thin_border
+
+    # Sheet 3: Numeric Field Summary
+    if classifications["NUMERIC"]:
+        ws_num = wb.create_sheet(title="Numeric Analytics")
+        ws_num.views.sheetView[0].showGridLines = True
+        num_summary = df[classifications["NUMERIC"]].describe().T.reset_index()
+        num_summary.rename(columns={"index": "Numeric Column"}, inplace=True)
+
+        for col_num, header in enumerate(num_summary.columns, 1):
+            c = ws_num.cell(row=1, column=col_num, value=header)
+            c.font = font_header
+            c.fill = fill_navy
+
+        for r_idx, row in enumerate(num_summary.itertuples(index=False), 2):
+            for c_idx, val in enumerate(row, 1):
+                c = ws_num.cell(
+                    row=r_idx,
+                    column=c_idx,
+                    value=round(val, 2) if isinstance(val, (float, np.floating)) else val,
+                )
+                c.border = thin_border
+
+    # Sheet 4: Cleaned Data Sample (First 5000 rows max for performance)
+    ws_data = wb.create_sheet(title="Data Export")
+    ws_data.views.sheetView[0].showGridLines = True
+    export_sample = df.head(5000)
+
+    for col_num, header in enumerate(export_sample.columns, 1):
+        c = ws_data.cell(row=1, column=col_num, value=header)
+        c.font = font_header
+        c.fill = fill_navy
+
+    for r_idx, row in enumerate(export_sample.itertuples(index=False), 2):
+        for c_idx, val in enumerate(row, 1):
+            c = ws_data.cell(row=r_idx, column=c_idx, value=str(val) if pd.isna(val) else val)
+            c.border = thin_border
+
+    # Auto-fit Column Widths across all sheets
+    for ws in wb.worksheets:
+        for col in ws.columns:
+            max_len = max(len(str(cell.value or "")) for cell in col)
+            col_letter = get_column_letter(col[0].column)
+            ws.column_dimensions[col_letter].width = min(max(max_len + 3, 12), 40)
+
+    wb.save(output)
+    return output.getvalue()
+
+
+# ==============================================================================
+# 8. RENDER HELPERS
+# ==============================================================================
+def render_kpi_card(label: str, value: str | int | float, subtext: str = ""):
+    st.markdown(
+        f"""
+        <div class="kpi-card">
+            <div class="kpi-label">{label}</div>
+            <div class="kpi-value">{value}</div>
+            <div class="kpi-subtext">{subtext}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+# ==============================================================================
+# 9. MAIN APPLICATION CONTROLLER
+# ==============================================================================
+def main():
+    # --------------------------------------------------------------------------
+    # HEADER BANNER
+    # --------------------------------------------------------------------------
+    st.markdown(
+        """
+        <div class="enterprise-header">
+            <h1>📊 Enterprise KPI & Analytics Dashboard</h1>
+            <p>Automated Dataset Intelligence, Visualizations & Data Quality Audit</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # --------------------------------------------------------------------------
+    # SIDEBAR: FILE UPLOAD & CONFIGURATION
+    # --------------------------------------------------------------------------
+    st.sidebar.title("📁 Data Source Setup")
+    uploaded_file = st.sidebar.file_uploader(
+        "Upload Dataset (.xlsx, .xls, .csv)", type=["xlsx", "xls", "csv"]
+    )
+
+    if not uploaded_file:
+        # Welcome & Instructions Area
+        st.info("👈 Please upload an Excel or CSV file in the sidebar to generate the interactive dashboard.")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(
+                """
+            <div class="section-container">
+                <div class="section-title">⚡ Autonomous Capabilities</div>
+                <ul>
+                    <li><b>Zero Config Required:</b> Upload any file; column types are detected automatically.</li>
+                    <li><b>Dynamic KPI Generation:</b> Calculates key parameters based on actual dataset traits.</li>
+                    <li><b>Power BI Experience:</b> Real-time visual refresh with bi-directional filters.</li>
+                    <li><b>Enterprise Excel Reports:</b> Multi-sheet report export with styled audits.</li>
+                </ul>
+            </div>
+            """,
+                unsafe_allow_html=True,
+            )
+        with col2:
+            st.markdown(
+                """
+            <div class="section-container">
+                <div class="section-title">🛡️ Robust Column Classification</div>
+                <ul>
+                    <li><b>ID Fields:</b> High uniqueness / key naming patterns.</li>
+                    <li><b>Dates:</b> Multi-format string & timestamp parsing.</li>
+                    <li><b>Categoricals:</b> Unique value counts & cardinality checks.</li>
+                    <li><b>Numeric:</b> Aggregations, metrics, and histograms.</li>
+                </ul>
+            </div>
+            """,
+                unsafe_allow_html=True,
+            )
+        return
+
+    # Handle Excel Sheet Selection
+    file_bytes = uploaded_file.getvalue()
+    sheet_name = None
+
+    if uploaded_file.name.endswith((".xlsx", ".xls")):
+        try:
+            xl = pd.ExcelFile(BytesIO(file_bytes))
+            sheets = xl.sheet_names
+            if len(sheets) > 1:
+                sheet_name = st.sidebar.selectbox("Select Excel Worksheet", sheets, index=0)
+            else:
+                sheet_name = sheets[0]
+        except Exception as e:
+            st.error(f"Error reading Excel sheets: {e}")
+            return
+
+    # Load and Clean
+    with st.spinner("Analyzing dataset structure..."):
+        raw_df, error_msg = load_and_clean_data(file_bytes, uploaded_file.name, sheet_name)
+
+    if error_msg or raw_df is None:
+        st.error(f"Failed to process file: {error_msg}")
+        return
+
+    # Classify Columns
+    classifications = classify_columns(raw_df)
+
+    # --------------------------------------------------------------------------
+    # SIDEBAR & TOP INTERACTIVE FILTER SYSTEM
+    # --------------------------------------------------------------------------
+    st.sidebar.markdown("---")
+    st.sidebar.title("🎛️ Dynamic Filters")
+
+    # Track filter states
+    filtered_df = raw_df.copy()
+
+    # Create Filter Controls for Categorical Columns (Limit to top 5 categories)
+    active_filters = {}
+    filterable_cats = classifications["CATEGORICAL"][:5]
+
+    for cat_col in filterable_cats:
+        options = sorted(list(raw_df[cat_col].dropna().unique()))
+        selected = st.sidebar.multiselect(
+            f"Filter {cat_col}", options=options, default=[], key=f"sb_{cat_col}"
+        )
+        if selected:
+            active_filters[cat_col] = selected
+
+    # Apply Sidebar Filters to DataFrame
+    for col, vals in active_filters.items():
+        filtered_df = filtered_df[filtered_df[col].isin(vals)]
+
+    if st.sidebar.button("Reset All Filters", use_container_width=True):
+        st.rerun()
+
+    # --------------------------------------------------------------------------
+    # 1. EXECUTIVE KPI CARDS (ABOVE FILTERS)
+    # --------------------------------------------------------------------------
+    quality_metrics = calculate_data_quality(filtered_df, classifications)
+
+    kpi_cols = st.columns(5)
+    with kpi_cols[0]:
+        render_kpi_card("Total Records", f"{len(filtered_df):,}", f"of {len(raw_df):,} total")
+    with kpi_cols[1]:
+        render_kpi_card("Total Columns", len(filtered_df.columns), f"{len(classifications['NUMERIC'])} numeric")
+    with kpi_cols[2]:
+        render_kpi_card("Categories", len(classifications["CATEGORICAL"]), "detected")
+    with kpi_cols[3]:
+        render_kpi_card("Date Fields", len(classifications["DATE"]), "detected")
+    with kpi_cols[4]:
+        render_kpi_card("Quality Score", f"{quality_metrics['overall_quality']}%", f"{quality_metrics['missing_pct']}% missing")
+
+    # Dynamic Numeric Metric Cards
+    if classifications["NUMERIC"]:
+        st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+        top_num = classifications["NUMERIC"][0]
+        num_cols = st.columns(4)
+        with num_cols[0]:
+            render_kpi_card(f"Total {top_num}", f"{filtered_df[top_num].sum():,.2f}", "Sum")
+        with num_cols[1]:
+            render_kpi_card(f"Average {top_num}", f"{filtered_df[top_num].mean():,.2f}", "Mean")
+        with num_cols[2]:
+            render_kpi_card(f"Max {top_num}", f"{filtered_df[top_num].max():,.2f}", "Peak")
+        with num_cols[3]:
+            render_kpi_card(f"Min {top_num}", f"{filtered_df[top_num].min():,.2f}", "Floor")
+
+    # --------------------------------------------------------------------------
+    # 2. AUTOMATIC INSIGHTS DASHBOARD (AUTOMATIC VISUALIZATIONS)
+    # --------------------------------------------------------------------------
+    st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
+    st.markdown('<div class="section-title">⚡ Automatic Dashboard Insights</div>', unsafe_allow_html=True)
+
+    visual_specs = select_automatic_insights(filtered_df, classifications)
+
+    if not visual_specs:
+        st.warning("Could not automatically select high-confidence charts. Use the interactive tabs below.")
+    else:
+        # Render charts in dynamic grid layouts
+        idx = 0
+        while idx < len(visual_specs):
+            spec = visual_specs[idx]
+
+            # Full Width Chart
+            if spec["span"] == 12:
+                with st.container():
+                    if spec["type"] == "date_trend":
+                        fig = build_date_trend(
+                            filtered_df, spec["date_col"], spec["cat_col"], spec["title"]
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                idx += 1
+            # Pair of Half Width Charts
+            else:
+                c1, c2 = st.columns(2)
+                with c1:
+                    if spec["type"] == "cat_bar":
+                        fig = build_categorical_bar(filtered_df, spec["col"], spec["title"])
+                    elif spec["type"] == "cat_donut":
+                        fig = build_categorical_donut(filtered_df, spec["col"], spec["title"])
+                    elif spec["type"] == "num_by_cat":
+                        fig = build_num_by_cat(
+                            filtered_df, spec["num_col"], spec["cat_col"], spec["title"]
+                        )
+                    elif spec["type"] == "num_dist":
+                        fig = build_num_distribution(filtered_df, spec["num_col"], spec["title"])
+                    st.plotly_chart(fig, use_container_width=True)
+
+                idx += 1
+                if idx < len(visual_specs) and visual_specs[idx]["span"] == 6:
+                    spec2 = visual_specs[idx]
+                    with c2:
+                        if spec2["type"] == "cat_bar":
+                            fig2 = build_categorical_bar(filtered_df, spec2["col"], spec2["title"])
+                        elif spec2["type"] == "cat_donut":
+                            fig2 = build_categorical_donut(filtered_df, spec2["col"], spec2["title"])
+                        elif spec2["type"] == "num_by_cat":
+                            fig2 = build_num_by_cat(
+                                filtered_df, spec2["num_col"], spec2["cat_col"], spec2["title"]
+                            )
+                        elif spec2["type"] == "num_dist":
+                            fig2 = build_num_distribution(filtered_df, spec2["num_col"], spec2["title"])
+                        st.plotly_chart(fig2, use_container_width=True)
+                    idx += 1
+
+    # --------------------------------------------------------------------------
+    # 3. INTERACTIVE ANALYSIS & DATA EXPLORER TABS
+    # --------------------------------------------------------------------------
+    st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
+    st.markdown('<div class="section-title">🔍 Detailed Interactive Analysis</div>', unsafe_allow_html=True)
+
+    tab_dist, tab_trends, tab_num, tab_quality, tab_explorer = st.tabs(
+        [
+            "📊 Distribution",
+            "📈 Trends",
+            "🔢 Numeric Metrics",
+            "🛡️ Data Quality",
+            "📋 Data Explorer",
+        ]
+    )
+
+    # --- TAB 1: DISTRIBUTION ---
+    with tab_dist:
+        if classifications["CATEGORICAL"]:
+            c1, c2 = st.columns([1, 2])
+            with c1:
+                selected_cat = st.selectbox(
+                    "Select Categorical Field", classifications["CATEGORICAL"], key="dist_sel"
+                )
+                chart_type = st.radio("Chart Type", ["Bar Chart", "Donut Chart"], key="dist_type")
+
+                # Distribution Summary Table
+                dist_table = filtered_df[selected_cat].value_counts(dropna=False).reset_index()
+                dist_table.columns = [selected_cat, "Count"]
+                dist_table["Percentage"] = (
+                    dist_table["Count"] / dist_table["Count"].sum() * 100
+                ).round(1).astype(str) + "%"
+                st.dataframe(dist_table, use_container_width=True, hide_index=True)
+
+            with c2:
+                if chart_type == "Bar Chart":
+                    fig = build_categorical_bar(
+                        filtered_df, selected_cat, f"{selected_cat} Distribution"
+                    )
+                else:
+                    fig = build_categorical_donut(
+                        filtered_df, selected_cat, f"{selected_cat} Share"
+                    )
+                st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No categorical columns detected in this dataset.")
+
+    # --- TAB 2: TRENDS ---
+    with tab_trends:
+        if classifications["DATE"]:
+            c1, c2 = st.columns([1, 2])
+            with c1:
+                selected_date = st.selectbox(
+                    "Select Date Field", classifications["DATE"], key="trend_date_sel"
+                )
+                breakdown_cat = st.selectbox(
+                    "Optional Category Breakdown",
+                    [None] + classifications["CATEGORICAL"],
+                    key="trend_cat_sel",
+                )
+            with c2:
+                fig = build_date_trend(
+                    filtered_df,
+                    selected_date,
+                    breakdown_cat,
+                    f"Trend Over Time by {selected_date}",
+                )
+                st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No date columns detected in this dataset.")
+
+    # --- TAB 3: NUMERIC METRICS ---
+    with tab_num:
+        if classifications["NUMERIC"]:
+            c1, c2 = st.columns([1, 2])
+            with c1:
+                selected_num = st.selectbox(
+                    "Select Numeric Field", classifications["NUMERIC"], key="num_sel"
+                )
+                s = filtered_df[selected_num].dropna()
+
+                stats_df = pd.DataFrame(
+                    {
+                        "Statistic": [
+                            "Sum",
+                            "Mean",
+                            "Median",
+                            "Std Dev",
+                            "Min",
+                            "Max",
+                            "Count",
+                            "Null Count",
+                        ],
+                        "Value": [
+                            f"{s.sum():,.2f}",
+                            f"{s.mean():,.2f}",
+                            f"{s.median():,.2f}",
+                            f"{s.std():,.2f}",
+                            f"{s.min():,.2f}",
+                            f"{s.max():,.2f}",
+                            f"{len(s):,}",
+                            f"{filtered_df[selected_num].isnull().sum():,}",
+                        ],
+                    }
+                )
+                st.dataframe(stats_df, use_container_width=True, hide_index=True)
+
+            with c2:
+                fig = build_num_distribution(
+                    filtered_df, selected_num, f"{selected_num} Distribution & Outliers"
+                )
+                st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No numeric columns detected in this dataset.")
+
+    # --- TAB 4: DATA QUALITY AUDIT ---
+    with tab_quality:
+        st.markdown("##### Column Quality Breakdown")
+        st.dataframe(
+            quality_metrics["column_stats"],
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    # --- TAB 5: DATA EXPLORER ---
+    with tab_explorer:
+        c1, c2 = st.columns([3, 1])
+        with c1:
+            search_query = st.text_input("🔍 Search within active filtered records", "")
+        with c2:
+            st.markdown(
+                f"<div style='padding-top: 1.8rem; font-weight:600;'>Showing {len(filtered_df):,} rows</div>",
+                unsafe_allow_html=True,
+            )
+
+        explorer_df = filtered_df.copy()
+        if search_query:
+            mask = np.column_stack(
+                [
+                    explorer_df[col]
+                    .astype(str)
+                    .str.contains(search_query, case=False, na=False)
+                    for col in explorer_df.columns
+                ]
+            )
+            explorer_df = explorer_df[mask.any(axis=1)]
+
+        st.dataframe(explorer_df, use_container_width=True, hide_index=True)
+
+    # --------------------------------------------------------------------------
+    # 4. EXPORT & REPORT DOWNLOAD AREA
+    # --------------------------------------------------------------------------
+    st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
+    st.markdown('<div class="section-title">📥 Export & Reports</div>', unsafe_allow_html=True)
+
+    exp_col1, exp_col2 = st.columns(2)
+
+    with exp_col1:
+        excel_data = generate_excel_kpi_report(filtered_df, classifications, quality_metrics)
+        st.download_button(
+            label="📊 Download Enterprise KPI Excel Report (.xlsx)",
+            data=excel_data,
+            file_name="Enterprise_KPI_Report.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+        )
+
+    with exp_col2:
+        csv_data = filtered_df.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="📄 Download Filtered Dataset (.csv)",
+            data=csv_data,
+            file_name="filtered_dataset.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+
+
+if __name__ == "__main__":
+    main()
